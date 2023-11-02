@@ -1,56 +1,81 @@
-/*Documentation:
-https://www.kaggle.com/datasets/ravindrasinghrana/employeedataset?select=training_and_development_data.csv */
-SET Global local_infile = "ON";
-show variables like "local_infile";
-/* Creating the Assignment Schema
-	If there's already a Schema named that, it drops it,
-    to eliminate error.*/
-Drop Schema if exists Assignment;
-Create Schema Assignment;
-Use Assignment;
+/*Creating the Schema and the tables*/
+Drop Schema if Exists assignment;
+Create Schema assignment;
+Use assignment;
 
-/* Creating the neccesary tables. */
-Drop Table if exists employee_data;
-Create Table employee_data
-(EmpID Integer Not Null,
-FirstName Varchar(32) Not Null,
-LastName Varchar(32) Not Null,
-StartDate Date Not Null,
-ExitDate Date,
-Title Varchar(255) Not Null,
-Supervisor Varchar(64) Not Null,
-ADEmail Varchar(255) Not Null,
-BusinessUnit Varchar(16) Not Null,
-EmployeeStatus Varchar(32) Not Null,
-EmployeeType Varchar(16) Not Null,
-PayZone Varchar(16) Not Null,
-EmployeeClassificationType Varchar(16) Not Null,
-TerminationType Varchar(16) Not Null,
-TerminationDescription Varchar(255),
-DepartmentType Varchar(32) Not Null,
-Division Varchar(64) Not Null,
-DOB Date Not Null,
-State Varchar(32) Not Null,
-JobFunctionDescription Varchar(255) Not Null,
-GenderCode Varchar(16) Not Null,
-LocationCode Integer Not Null,
-RaceDesc Varchar(32) Not Null,
-MaritalDesc Varchar(32) Not Null,
-PerformanceScore Varchar(64) Not Null,
-CurrentEmployeeRating Integer Not Null,
-Primary key(EmpID)
+Drop Table if Exists
+ACCOUNT_TRANSACTIONS,
+ACCOUNT_TRANSACT_TYPES,
+ACCOUNT_TYPES,
+ACCOUNTS,
+ORGANIZATIONS,
+PARTIES,
+PRODUCTS;
+
+Create Table ACCOUNT_TRANSACTIONS(
+ACCTRN_KEY bigint NOT NULL,
+ACC_KEY int NOT NULL,
+ACCTP_KEY int NOT NULL,
+ACTRNTP_KEY int NOT NULL,
+ACCTRN_ACCOUNTING_DATE Date NOT NULL,
+ACCTRN_AMOUNT_CZK int NOT NULL,
+ACCTRN_AMOUNT_FX int NOT NULL,
+CURR_ISO_CODE varchar(255) NOT NULL,
+ACCTRN_CRDR_FLAG varchar(255) NOT NULL,
+ACCTRN_CASH_FLAG varchar(255) NOT NULL,
+ACCTRN_INTEREST_FLAG varchar(255) NOT NULL,
+ACCTRN_TAX_FLAG varchar(255) NOT NULL,
+ACCTRN_FEE_FLAG varchar(255) NOT NULL,
+ACC_OTHER_ACCOUNT_KEY int NOT NULL,
+ACCTP_OTHER_ACCOUNT_KEY int NOT NULL,
+Primary Key(ACCTRN_KEY)
 );
 
-/* Loading the files*/
-LOAD DATA Local INFILE 'D:\GITHUB\SQL Practice\Data-Engineering-Assignment1\Data\employee_data.csv' 
-INTO TABLE employee_data
-FIELDS TERMINATED BY ',' 
-LINES TERMINATED BY '\r\n' 
-IGNORE 1 LINES
-(EmpID, FirstName, LastName, StartDate, @v_ExitDate, Title, Supervisor, ADEmail, BusinessUnit, EmployeeStatus, EmployeeType, PayZone, 
-EmployeeClassificationType, TerminationType, @v_TerminationDescription, DepartmentType, Division, DOB, State, JobFunctionDescription, 
-GenderCode, LocationCode, RaceDesc, MaritalDesc, PerformanceScore, CurrentEmployeeRating
-)
-SET
-ExitDate = nullif(@v_ExitDate, ''),
-TerminationDescription = nullif(@v_TerminationDescription, '');
+Create Table ACCOUNT_TRANSACT_TYPES(
+ACTRNTP_KEY int NOT NULL,
+ACTRNTP_DESC varchar(255) NOT NULL,
+Primary Key(ACTRNTP_KEY)
+);
+
+Create Table ACCOUNT_TYPES(
+ACCTP_KEY int NOT NULL,
+ACCTP_DESC varchar(255),
+Primary Key(ACCTP_KEY)
+);
+
+Create Table ACCOUNTS(
+ACC_KEY int NOT NULL,
+ACCTP_KEY int NOT NULL,
+PROD_KEY int NOT NULL,
+ORG_KEY int NOT NULL,
+PT_UNIFIED_KEY bigint NOT NULL,
+ACCH_OPEN_DATE date NOT NULL,
+ACCH_CLOSE_DATE date NOT NULL,
+Primary Key(ACC_KEY)
+);
+
+Create Table ORGANIZATIONS(
+ORG_KEY int NOT NULL,
+ORGH_UNIFIED_ID varchar(255) NOT NULL,
+CITY varchar(255) NOT NULL,
+ZIP int NOT NULL,
+Primary Key(ORG_KEY)
+);
+
+Create Table PARTIES(
+PT_UNIFIED_KEY int NOT NULL,
+ORG_KEY int NOT NULL,
+PTH_BIRTH_DATE varchar(255) NOT NULL,
+PTH_CLIENT_FROM_DATE varchar(255) NOT NULL,
+PTH_CLIENT_FROM_DATE_ALT varchar(255) NOT NULL,
+PTTP_UNIFIED_ID varchar(255) NOT NULL,
+PSGEN_UNIFIED_ID varchar(255) NOT NULL,
+Primary Key(PT_UNIFIED_KEY)
+);
+
+Create Table PRODUCTS(
+PROD_KEY int NOT NULL,
+PROD_AGENDA_CODE varchar(255) NOT NULL,
+PROD_AGENDA_NAME varchar(255) NOT NULL,
+Primary Key(PROD_KEY)
+);
