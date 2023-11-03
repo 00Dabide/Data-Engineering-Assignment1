@@ -3,6 +3,8 @@ Drop Schema if Exists assignment;
 Create Schema assignment;
 Use assignment;
 
+SET GLOBAL local_infile = true;
+
 Drop Table if Exists
 ACCOUNT_TRANSACTIONS,
 ACCOUNT_TRANSACT_TYPES,
@@ -166,11 +168,16 @@ PROD_AGENDA_NAME);
 --
 /*QUESTIONS*/
 --
-/*Which accounts are in the most used city?*/
+/*Select every cash transactions*/
+Drop view if exists Cash_Transactions;
 
-Select t1.PT_UNIFIED_KEY, t2.CITY
-From parties t1
-INNER JOIN organizations t2
-ON t1.ORG_KEY = t2.ORG_KEY;
+Create view Cash_Transactions as
+Select * from account_transactions
+Where ACCTRN_CASH_FLAG = 'Y';
 
-Select CITY From organizations;
+/*Select closed accounts*/
+Drop view if exists Closed_accounts;
+
+Create view Closed_accounts as
+Select * From accounts
+Where ACCH_CLOSE_DATE <> '3000-01-01'
