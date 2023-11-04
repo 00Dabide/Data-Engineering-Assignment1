@@ -199,6 +199,19 @@ INNER JOIN PARTIES t2
 ON t1.PT_UNIFIED_KEY = t2.PT_UNIFIED_KEY
 Where t2.PTTP_UNIFIED_ID = 'P';
 
+
+/*Select most used City and the number of times it is used*/
+Drop View if exists Most_Used_City;
+
+Create View Most_Used_City as
+Select t2.CITY, Count(t2.CITY) as 'COUNT'
+From PARTIES t1
+Inner Join ORGANIZATIONS t2
+ON t1.ORG_KEY = t2.ORG_KEY
+Group By t2.CITY
+Order By Count(t2.CITY) desc
+Limit 1;
+
 /*Procedures*/
 
 /*Return transactions with value minimum the amount that was given (in CZK)*/
