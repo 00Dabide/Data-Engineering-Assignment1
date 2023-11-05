@@ -166,6 +166,10 @@ ACCTRN_FEE_FLAG,
 ACC_OTHER_ACCOUNT_KEY,
 ACCTP_OTHER_ACCOUNT_KEY);
 
+/*Analytical Data Store*/
+/*Creating a table for the new transactions*/
+CREATE TABLE new_transactions LIKE ACCOUNT_TRANSACTIONS;
+
 --
 /*QUESTIONS*/
 --
@@ -213,6 +217,33 @@ Order By Count(t2.CITY) desc
 Limit 1;
 
 /*Procedures*/
+/*Creates a new table, which shows information about the live (not closed) accounts*/
+Drop Procedure if Exists Create_Accounts_INFO;
+
+DELIMITER //
+
+Create Procedure Create_Accounts_INFO()
+BEGIN
+
+Drop Table if Exists ACCOUNTS_INFO;
+
+CREATE TABLE ACCOUNTS_INFO AS
+Select
+t1.ACC_KEY AS 'Account ID',
+t1.ACCH_OPEN_DATE AS 'Account Opening Date',
+t2.ACCTP_DESC AS 'Account Description',
+t3.CITY,
+t3.ZIP,
+t4.PTTP_UNIFIED_ID AS 'Entity Type (Legal or Individual)'
+From
+ACCOUNTS t1
+Inner Join ACCOUNT_TYPES t2 USING (ACCTP_KEY)
+Inner Join ORGANIZATIONS t3 USING (ORG_KEY)
+Inner Join PARTIES t4 USING (PT_UNIFIED_KEY)
+Where t1.ACCH_CLOSE_DATE = '3000-01-01';
+
+END //
+DELIMITER;
 
 /*Return transactions with value minimum the amount that was given (in CZK)*/
 Drop Procedure if exists Transaction_Amount;
@@ -235,4 +266,19 @@ Inner Join PARTIES t3 USING (PT_UNIFIED_KEY)
 Where t1.ACCTRN_AMOUNT_CZK > ABS(Amount) OR t1.ACCTRN_AMOUNT_CZK < -ABS(Amount);
 
 END //
+DELIMITER ;
+
+/*Event*/
+
+DELIMITER //
+
+CREATE EVENT Create_Live_Accounts
+ON SCHEDULE EVERY 1 MINUTE
+STARTS CURRENT_TIMESTAMP
+ENDS CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+DO
+	BEGIN
+		Drop Table if exists ACCOUNTS_INFO;
+    		CALL Create_Accounts_INFO();
+	END//
 DELIMITER ;
