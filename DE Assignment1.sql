@@ -3,7 +3,7 @@ Drop Schema if Exists assignment;
 Create Schema assignment;
 Use assignment;
 
-SET GLOBAL local_infile = true;
+Set Global local_infile = true;
 
 Drop Table if Exists
 ACCOUNT_TRANSACTIONS,
@@ -49,7 +49,8 @@ PTH_CLIENT_FROM_DATE varchar(255) NOT NULL,
 PTH_CLIENT_FROM_DATE_ALT varchar(255) NOT NULL,
 PTTP_UNIFIED_ID varchar(255) NOT NULL,
 PSGEN_UNIFIED_ID varchar(255) NOT NULL,
-Primary Key(PT_UNIFIED_KEY)
+Primary Key(PT_UNIFIED_KEY),
+Constraint Organization_ID Foreign Key (ORG_KEY) References ORGANIZATIONS(ORG_KEY)
 );
 
 Create Table ACCOUNTS(
@@ -60,7 +61,11 @@ ORG_KEY int NOT NULL,
 PT_UNIFIED_KEY bigint NOT NULL,
 ACCH_OPEN_DATE date NOT NULL,
 ACCH_CLOSE_DATE date NOT NULL,
-Primary Key(ACC_KEY)
+Primary Key(ACC_KEY),
+Constraint Account_Type Foreign Key (ACCTP_KEY) References ACCOUNT_TYPES(ACCTP_KEY),
+Constraint Product_ID Foreign Key (PROD_KEY) References PRODUCTS(PROD_KEY),
+Constraint Organization_ID2 Foreign Key (ORG_KEY) References ORGANIZATIONS(ORG_KEY),
+Constraint Holder_ID Foreign Key (PT_UNIFIED_KEY) References PARTIES(PT_UNIFIED_KEY)
 );
 
 Create Table ACCOUNT_TRANSACTIONS(
@@ -79,7 +84,12 @@ ACCTRN_TAX_FLAG varchar(255) NOT NULL,
 ACCTRN_FEE_FLAG varchar(255) NOT NULL,
 ACC_OTHER_ACCOUNT_KEY int NOT NULL,
 ACCTP_OTHER_ACCOUNT_KEY int NOT NULL,
-Primary Key(ACCTRN_KEY)
+Primary Key(ACCTRN_KEY),
+Constraint Account_ID Foreign Key (ACC_KEY) References ACCOUNTS(ACC_KEY),
+Constraint Account_Type2 Foreign Key (ACCTP_KEY) References ACCOUNT_TYPES(ACCTP_KEY),
+Constraint Transaction_Type Foreign Key (ACTRNTP_KEY) References ACCOUNT_TRANSACT_TYPES(ACTRNTP_KEY),
+Constraint Secondary_Account_ID Foreign Key (ACC_KEY) References ACCOUNTS(ACC_KEY),
+Constraint Secondary_Account_Type Foreign Key (ACCTP_KEY) References ACCOUNT_TYPES(ACCTP_KEY)
 );
 
 /*Loading data to the tables*/
@@ -168,23 +178,23 @@ ACCTP_OTHER_ACCOUNT_KEY);
 
 /*Analytical Data Store*/
 /*Creating a table for the new transactions*/
-CREATE TABLE new_transactions LIKE ACCOUNT_TRANSACTIONS;
+Create Table new_transactions Like ACCOUNT_TRANSACTIONS;
 
 --
 /*QUESTIONS*/
 --
 /*Select every cash transactions*/
-Drop view if exists Cash_Transactions;
+Drop View if Exists Cash_Transactions;
 
-Create view Cash_Transactions as
+Create View Cash_Transactions as
 Select * 
-from account_transactions
+From account_transactions
 Where ACCTRN_CASH_FLAG = 'Y';
 
 /*Select closed accounts*/
-Drop view if exists Closed_accounts;
+Drop View if Exists Closed_accounts;
 
-Create view Closed_accounts as
+Create View Closed_accounts as
 Select * 
 From accounts
 Where ACCH_CLOSE_DATE <> '3000-01-01';
@@ -199,13 +209,13 @@ t2.PT_UNIFIED_KEY as 'Holder ID',
 t2.PTTP_UNIFIED_ID as 'Entity Type',
 t1.ACCH_OPEN_DATE as 'Account Opening Date'
 From ACCOUNTS t1
-INNER JOIN PARTIES t2
+Inner Join PARTIES t2
 ON t1.PT_UNIFIED_KEY = t2.PT_UNIFIED_KEY
 Where t2.PTTP_UNIFIED_ID = 'P';
 
 
 /*Select most used City and the number of times it is used*/
-Drop View if exists Most_Used_City;
+Drop View if Exists Most_Used_City;
 
 Create View Most_Used_City as
 Select t2.CITY, Count(t2.CITY) as 'COUNT'
@@ -227,26 +237,26 @@ BEGIN
 
 Drop Table if Exists ACCOUNTS_INFO;
 
-CREATE TABLE ACCOUNTS_INFO AS
+Create Table ACCOUNTS_INFO as
 Select
-t1.ACC_KEY AS 'Account ID',
-t1.ACCH_OPEN_DATE AS 'Account Opening Date',
-t2.ACCTP_DESC AS 'Account Description',
+t1.ACC_KEY as 'Account ID',
+t1.ACCH_OPEN_DATE as 'Account Opening Date',
+t2.ACCTP_DESC as 'Account Description',
 t3.CITY,
 t3.ZIP,
-t4.PTTP_UNIFIED_ID AS 'Entity Type (Legal or Individual)'
+t4.PTTP_UNIFIED_ID as 'Entity Type (Legal or Individual)'
 From
 ACCOUNTS t1
-Inner Join ACCOUNT_TYPES t2 USING (ACCTP_KEY)
-Inner Join ORGANIZATIONS t3 USING (ORG_KEY)
-Inner Join PARTIES t4 USING (PT_UNIFIED_KEY)
+Inner Join ACCOUNT_TYPES t2 Using (ACCTP_KEY)
+Inner Join ORGANIZATIONS t3 Using (ORG_KEY)
+Inner Join PARTIES t4 Using (PT_UNIFIED_KEY)
 Where t1.ACCH_CLOSE_DATE = '3000-01-01';
 
 END //
 DELIMITER;
 
 /*Return transactions with value minimum the amount that was given (in CZK)*/
-Drop Procedure if exists Transaction_Amount;
+Drop Procedure if Exists Transaction_Amount;
 
 DELIMITER //
 
@@ -261,8 +271,8 @@ t1.ACCTRN_ACCOUNTING_DATE as 'Transaction Date',
 t3.PT_UNIFIED_KEY as 'Holder ID',
 t3.PSGEN_UNIFIED_ID as 'Holder Sex'
 From ACCOUNT_TRANSACTIONS t1
-Inner Join ACCOUNTS t2 USING (ACC_KEY)
-Inner Join PARTIES t3 USING (PT_UNIFIED_KEY)
+Inner Join ACCOUNTS t2 Using (ACC_KEY)
+Inner Join PARTIES t3 Using (PT_UNIFIED_KEY)
 Where t1.ACCTRN_AMOUNT_CZK > ABS(Amount) OR t1.ACCTRN_AMOUNT_CZK < -ABS(Amount);
 
 END //
@@ -272,13 +282,13 @@ DELIMITER ;
 
 DELIMITER //
 
-CREATE EVENT Create_Live_Accounts
-ON SCHEDULE EVERY 1 MINUTE
-STARTS CURRENT_TIMESTAMP
-ENDS CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+Create Event Create_Live_Accounts
+ON Schedule Every 1 MINUTE
+STARTS Current_Timestamp
+ENDS Current_Timestamp + INTERVAL 1 HOUR
 DO
 	BEGIN
-		Drop Table if exists ACCOUNTS_INFO;
+		Drop Table if Exists ACCOUNTS_INFO;
     		CALL Create_Accounts_INFO();
 	END//
 DELIMITER ;
