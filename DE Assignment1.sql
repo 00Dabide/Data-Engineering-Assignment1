@@ -4,6 +4,7 @@ Create Schema assignment;
 Use assignment;
 
 Set Global local_infile = true;
+Set SQL_SAFE_UPDATES = 0;
 
 Drop Table if Exists
 ACCOUNT_TRANSACTIONS,
@@ -177,13 +178,17 @@ ACC_OTHER_ACCOUNT_KEY,
 ACCTP_OTHER_ACCOUNT_KEY);
 
 /*Analytical Data Store*/
-/*Creating a table for the new transactions*/
-Create Table new_transactions Like ACCOUNT_TRANSACTIONS;
+Create Table New_Transactions like ACCOUNT_TRANSACTIONS;
 
+Create Table DUMMY(
+DUMMY varchar(100) NOT NULL);
+
+Insert Into DUMMY Values("DUMMY");
 --
 /*QUESTIONS*/
 --
 /*Select every cash transactions*/
+
 Drop View if Exists Cash_Transactions;
 
 Create View Cash_Transactions as
@@ -192,6 +197,7 @@ From account_transactions
 Where ACCTRN_CASH_FLAG = 'Y';
 
 /*Select closed accounts*/
+
 Drop View if Exists Closed_accounts;
 
 Create View Closed_accounts as
@@ -200,6 +206,7 @@ From accounts
 Where ACCH_CLOSE_DATE <> '3000-01-01';
 
 /* Select account open dates of legal entities */
+
 Drop View if Exists Legal_Entity_AccOP_Date;
 
 Create View Legal_Entity_AccOP_Date as
@@ -215,6 +222,7 @@ Where t2.PTTP_UNIFIED_ID = 'P';
 
 
 /*Select most used City and the number of times it is used*/
+
 Drop View if Exists Most_Used_City;
 
 Create View Most_Used_City as
@@ -228,19 +236,21 @@ Limit 1;
 
 /*Procedures*/
 /*Creates a new table, which shows information about the live (not closed) accounts*/
-Drop Procedure if Exists Create_Accounts_INFO;
+
+Drop Procedure if Exists Create_Live_Accounts_INFO;
 
 DELIMITER //
 
-Create Procedure Create_Accounts_INFO()
+Create Procedure Create_Live_Accounts_INFO()
 BEGIN
 
-Drop Table if Exists ACCOUNTS_INFO;
+Drop Table if Exists LIVE_ACCOUNTS_INFO;
 
-Create Table ACCOUNTS_INFO as
+Create Table LIVE_ACCOUNTS_INFO as
 Select
 t1.ACC_KEY as 'Account ID',
 t1.ACCH_OPEN_DATE as 'Account Opening Date',
+datediff(CurDate(), t1.ACCH_OPEN_DATE) as 'Account Age (Days)',
 t2.ACCTP_DESC as 'Account Description',
 t3.CITY,
 t3.ZIP,
@@ -250,12 +260,13 @@ ACCOUNTS t1
 Inner Join ACCOUNT_TYPES t2 Using (ACCTP_KEY)
 Inner Join ORGANIZATIONS t3 Using (ORG_KEY)
 Inner Join PARTIES t4 Using (PT_UNIFIED_KEY)
-Where t1.ACCH_CLOSE_DATE = '3000-01-01';
-
-END //
+Where t1.ACCH_CLOSE_DATE = '3000-01-01'
+Order By 'Account Age (Days)';
+End //
 DELIMITER;
 
 /*Return transactions with value minimum the amount that was given (in CZK)*/
+
 Drop Procedure if Exists Transaction_Amount;
 
 DELIMITER //
@@ -275,20 +286,88 @@ Inner Join ACCOUNTS t2 Using (ACC_KEY)
 Inner Join PARTIES t3 Using (PT_UNIFIED_KEY)
 Where t1.ACCTRN_AMOUNT_CZK > ABS(Amount) OR t1.ACCTRN_AMOUNT_CZK < -ABS(Amount);
 
-END //
+End //
 DELIMITER ;
 
-/*Event*/
+/*Procedure that closes a selected account and re-creates Live_Account_INFO*/
+
+Drop Procedure if Exists Account_Close;
 
 DELIMITER //
 
-Create Event Create_Live_Accounts
-ON Schedule Every 1 MINUTE
-STARTS Current_Timestamp
-ENDS Current_Timestamp + INTERVAL 1 HOUR
+Create Procedure Account_Close(IN ID INT)
+Begin
+
+Update ACCOUNTS
+Set ACCH_CLOSE_DATE = current_date()
+Where ACC_KEY = ID;
+
+Call Create_Live_Accounts_INFO();
+
+End //
+
+DELIMITER ;
+
+/*Events*/
+
+DELIMITER //
+
+Create Event Delete_Recent_Transactions
+On Schedule Every 1 Hour
+Starts current_timestamp
+Ends Current_Timestamp + Interval 24 HOUR
 DO
 	BEGIN
-		Drop Table if Exists ACCOUNTS_INFO;
-    		CALL Create_Accounts_INFO();
+		Truncate New_Transactions;
 	END//
 DELIMITER ;
+
+/*Trigger*/
+/*Update Accounts INFO after Insert of new account*/
+
+Drop Trigger if Exists after_accounts_insert;
+
+DELIMITER //
+
+Create Trigger after_accounts_insert
+After Insert On ACCOUNTS For Each Row
+Begin
+
+	Update DUMMY Set DUMMY = CONCAT('New Account ID: ', NEW.ACC_KEY);
+
+	Insert Into LIVE_ACCOUNTS_INFO
+	Select
+	t1.ACC_KEY as 'Account ID',
+	t1.ACCH_OPEN_DATE as 'Account Opening Date',
+	datediff(CurDate(), t1.ACCH_OPEN_DATE) as 'Account Age (Days)',
+	t2.ACCTP_DESC as 'Account Description',
+	t3.CITY,
+	t3.ZIP,
+	t4.PTTP_UNIFIED_ID as 'Entity Type (Legal or Individual)'
+	From
+	ACCOUNTS t1
+	Inner Join ACCOUNT_TYPES t2 Using (ACCTP_KEY)
+	Inner Join ORGANIZATIONS t3 Using (ORG_KEY)
+	Inner Join PARTIES t4 Using (PT_UNIFIED_KEY)
+	Where t1.ACCH_CLOSE_DATE = '3000-01-01' AND ACC_KEY = NEW.ACC_KEY;
+    
+End //
+
+DELIMITER ;
+
+Drop Trigger if Exists after_transaction_insert;
+
+DELIMITER //
+
+Create Trigger after_transaction_insert
+After Insert On NEW_TRANSACTIONS For Each Row
+Begin
+
+	Update DUMMY Set DUMMY = CONCAT('New Transaction ID: ', NEW.ACCTRN_KEY);
+    
+    Insert Into ACCOUNT_TRANSACTIONS
+    SELECT *
+    From NEW_TRANSACTIONS
+    Where ACCTRN_KEY = NEW.ACCTRN_KEY;
+
+End //
